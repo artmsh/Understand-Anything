@@ -21,6 +21,7 @@
   "pnpm": {
     "onlyBuiltDependencies": [
       "@tree-sitter-grammars/tree-sitter-kotlin",
+      "@tree-sitter-grammars/tree-sitter-zig",
       "esbuild",
       "tree-sitter-c",
       "tree-sitter-c-sharp",

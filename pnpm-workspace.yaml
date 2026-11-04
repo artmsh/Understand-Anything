@@ -4,6 +4,7 @@ packages:
   - 'homepage'
 allowBuilds:
   '@tree-sitter-grammars/tree-sitter-kotlin': true
+  '@tree-sitter-grammars/tree-sitter-zig': true
   esbuild: true
   sharp: true
   tree-sitter-c: true

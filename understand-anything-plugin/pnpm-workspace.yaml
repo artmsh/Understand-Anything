@@ -2,6 +2,7 @@ packages:
   - "packages/*"
 allowBuilds:
   '@tree-sitter-grammars/tree-sitter-kotlin': true
+  '@tree-sitter-grammars/tree-sitter-zig': true
   esbuild: true
   tree-sitter-c: true
   tree-sitter-c-sharp: true

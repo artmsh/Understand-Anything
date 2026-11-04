@@ -1,5 +1,6 @@
 import type { StructuralAnalysis } from "../types.js";
 import { COVERAGE_LANGUAGES, declarationGap } from "./symbol-coverage.js";
+import { collectZigSymbolEvidence } from "./symbol-evidence-zig.js";
 import type { TreeSitterNode as Node } from "./extractors/types.js";
 import { classExpression, declarationKey, declarationName, identifier, literal, unescaped, unwrap } from "./symbol-ast.js";
 import { buildSymbolScopes, CLASS_NODES, FUNCTION_NODES, FILE_SCOPE, UNKNOWN_SCOPE, namedScope,
@@ -47,6 +48,9 @@ function member(node: Node | null): { object: Node | null; name: string | null }
 
 /** One AST walk emits scoped possibilities, never file-wide text matches. */
 export function collectSymbolEvidence(root: Node, structure: StructuralAnalysis, language: string): SymbolEvidence {
+  // Zig node names overlap other grammars (function_declaration,
+  // struct_declaration) with different meaning; it has its own adapter.
+  if (language === "zig") return collectZigSymbolEvidence(root, structure);
   const effects: SymbolEvidenceEntry[] = [];
   const isJS = ["javascript", "typescript", "tsx"].includes(language);
   const isRuby = language === "ruby";

@@ -117,8 +117,13 @@ function sourceSymbols(evidence) {
     const declaration = evidence.symbolEvidence.classes.find(item => item.name === cls.name
       && JSON.stringify(item.lineRange) === JSON.stringify(cls.lineRange));
     if (declaration?.scope.kind === 'local') continue;
-    const classVerified = declaration?.scope.kind === 'file';
-    symbols.push({ kind: 'class', owner: classVerified ? '' : null, name: cls.name, lineRange: cls.lineRange });
+    // A nested declaration (Zig `Outer.Inner`) is owned by its enclosing class;
+    // the structure keeps the full dotted path so methods can name it.
+    const parent = declaration?.scope.kind === 'class' && cls.name.startsWith(`${declaration.scope.name}.`)
+      ? declaration.scope.name : null;
+    const classVerified = declaration?.scope.kind === 'file' || parent !== null;
+    symbols.push({ kind: 'class', owner: parent ?? (classVerified ? '' : null),
+      name: parent ? cls.name.slice(parent.length + 1) : cls.name, lineRange: cls.lineRange });
     const used = new Map();
     for (const name of cls.methods) {
       const count = used.get(name) ?? 0;
@@ -137,7 +142,8 @@ function sourceSymbols(evidence) {
 }
 
 function ambiguousOwner(symbol, source) {
-  return symbol.owner && source.filter(item => item.kind === 'class' && item.name === symbol.owner).length > 1;
+  return symbol.owner && source.filter(item => item.kind === 'class'
+    && (item.owner ? `${item.owner}.${item.name}` : item.name) === symbol.owner).length > 1;
 }
 
 function nodeNames(node) {
@@ -156,6 +162,16 @@ function classOwners(node, graph) {
   const parents = new Set(graph.edges.filter(edge => edge.type === 'contains' && edge.target === node.id)
     .map(edge => edge.source));
   return graph.nodes.filter(parent => parent.type === 'class' && parents.has(parent.id));
+}
+
+// `Reader` contained by `Xdr` may name the source owner `Xdr.Reader`. Only a
+// unique containment chain qualifies a name; the plain name stays accepted.
+function containedClassName(node, graph, seen = new Set()) {
+  const name = qualifiedName(node.name);
+  if (seen.has(node.id)) return name;
+  seen.add(node.id);
+  const parents = classOwners(node, graph);
+  return parents.length === 1 ? `${containedClassName(parents[0], graph, seen)}.${name}` : name;
 }
 
 function hasPreservedIdentity(node, previous, current, sameRevision = false) {
@@ -185,7 +201,7 @@ function resolveSymbol(node, graph, symbols) {
   const qualified = candidates.filter(symbol => symbol.owner
     && names.has(qualifiedName(`${symbol.owner}.${symbol.name}`)));
   if (qualified.length) candidates = qualified;
-  const owners = classOwners(node, graph).map(parent => qualifiedName(parent.name));
+  const owners = classOwners(node, graph).flatMap(parent => [qualifiedName(parent.name), containedClassName(parent, graph)]);
   if (owners.length) candidates = candidates.filter(symbol => symbol.owner !== null && owners.includes(qualifiedName(symbol.owner)));
   // Lines locate ownership within one revision only; they are never identity
   // across revisions. Do not use lines to guess among overloads/same-name classes.

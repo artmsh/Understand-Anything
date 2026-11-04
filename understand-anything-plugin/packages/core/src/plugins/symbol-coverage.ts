@@ -16,7 +16,7 @@ const NON_DECLARATION_NAMES = new Set(["export_specifier", "import_specifier", "
   "hash_splat_parameter", "splat_parameter", "scope_resolution", "variable_reference_pattern", "as_pattern",
   "enum_assignment", "enum_body"]);
 const OPAQUE_DECLARATIONS = new Set(["macro_invocation", "preproc_call", "preproc_function_def"]);
-export const COVERAGE_LANGUAGES = new Set(["javascript", "typescript", "tsx", "ruby", "python", "go", "rust", "cpp"]);
+export const COVERAGE_LANGUAGES = new Set(["javascript", "typescript", "tsx", "ruby", "python", "go", "rust", "cpp", "zig"]);
 
 export function declarationGap(node: Node, scope: SymbolScope, receiver: SymbolScope): SymbolEvidenceEntry | null {
   const range: [number, number] = [node.startPosition.row + 1, node.endPosition.row + 1];

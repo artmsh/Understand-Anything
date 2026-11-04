@@ -236,6 +236,7 @@ describe('incremental symbol publication gate', { timeout: 30_000 }, () => {
     ['rb', 'class A\n def run; end\nend\nclass B; end\n', 'class A\n def keep; end\nend\nclass B\n attr_reader :run\nend\n'],
     ['ts', 'class A { run() {} }\nclass B {}\n', 'class A { keep() {} }\nclass B {}\nObject.defineProperty(B.prototype, "run", { value() {} });\n'],
     ['py', 'class A:\n def run(self): pass\nclass B: pass\n', 'class A:\n def keep(self): pass\nclass B: pass\nsetattr(B, "run", lambda self: None)\n'],
+    ['zig', 'const A = struct {\n    fn run() void {}\n};\nconst B = struct {};\n', 'const A = struct {\n    fn keep() void {}\n};\nconst B = struct {\n    run: *const fn () void,\n    pub usingnamespace M;\n};\n'],
   ])('publishes a genuine deletion while another %s owner installs the same name', (extension, oldSource, newSource) => {
     const path = `src/scopes.${extension}`;
     const f = symbolFixture(2, { [path]: oldSource });
@@ -276,6 +277,7 @@ describe('incremental symbol publication gate', { timeout: 30_000 }, () => {
     ['rb', 'class A\n def run; end\nend\n', 'class A\n def keep; end\n define_method(("r" + "un").to_sym) { 1 }\nend\n'],
     ['rb', 'class A\n def run; end\nend\n', 'class A\n def keep; end\n attr(("r" + "un").to_sym)\nend\n'],
     ['py', 'class A:\n def run(self): pass\n', 'class A:\n def keep(self): pass\nsetattr(A, "r" + "un", lambda self: None)\n'],
+    ['zig', 'const A = struct {\n    fn run() void {}\n};\n', 'const A = struct {\n    pub usingnamespace M;\n    fn keep() void {}\n};\n'],
   ])('blocks publication of omitted runtime-installed %s methods', (extension, oldSource, newSource) => {
     const path = `src/dynamic.${extension}`;
     const f = symbolFixture(2, { [path]: oldSource });

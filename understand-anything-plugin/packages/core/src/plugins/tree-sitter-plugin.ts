@@ -10,6 +10,7 @@ import type { LanguageConfig } from "../languages/types.js";
 import type { LanguageExtractor } from "./extractors/types.js";
 import { collectSymbolEvidence, type SymbolEvidence } from "./symbol-evidence.js";
 import { builtinExtractors } from "./extractors/index.js";
+import { zigParseIsClean } from "./extractors/zig-extractor.js";
 
 // web-tree-sitter uses CJS internally; we need createRequire for .wasm resolution
 const require = createRequire(import.meta.url);
@@ -24,7 +25,7 @@ type TreeSitterLanguage = import("web-tree-sitter").Language;
  * and how to load their WASM grammars. Provides deep structural analysis
  * (functions, classes, imports, exports, call graphs) for all languages
  * with registered extractors: TypeScript, JavaScript, Python, Go, Rust,
- * Java, Ruby, PHP, C/C++, C#, Dart, Kotlin, Swift, and Scala.
+ * Java, Ruby, PHP, C/C++, C#, Dart, Kotlin, Swift, Scala, and Zig.
  *
  * Languages without tree-sitter configs are gracefully skipped (the LLM
  * agent handles analysis for those).
@@ -289,7 +290,8 @@ export class TreeSitterPlugin implements AnalyzerPlugin {
         return { status: "unsupported", structure: null, symbolEvidence: null };
       }
       tree = parser.parse(content);
-      if (!tree || tree.rootNode.hasError) {
+      // Zig: tolerate only the grammar's empty-container phantom field.
+      if (!tree || (langKey === "zig" ? !zigParseIsClean(tree.rootNode) : tree.rootNode.hasError)) {
         return { status: "failed", structure: null, symbolEvidence: null };
       }
       const structure = extractor.extractStructure(tree.rootNode);
