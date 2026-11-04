@@ -161,6 +161,14 @@ describe('scan-project.mjs — language detection', () => {
     expect(byPath(r.output, 'build.sbt').fileCategory).toBe('config');
   });
 
+  it('maps .zig to zig code', () => {
+    projectRoot = setupTree({ 'src/main.zig': 'pub fn main() void {}\n', 'build.zig': 'pub fn build(b: *Build) void { _ = b; }\n' });
+    const r = runScript(projectRoot);
+    expect(r.status).toBe(0);
+    expect(byPath(r.output, 'src/main.zig')).toMatchObject({ language: 'zig', fileCategory: 'code' });
+    expect(byPath(r.output, 'build.zig')).toMatchObject({ language: 'zig', fileCategory: 'code' });
+  });
+
   it('maps Ruby, PHP, C, C++ to their language ids', () => {
     projectRoot = setupTree({
       'a.rb': 'puts 1\n',

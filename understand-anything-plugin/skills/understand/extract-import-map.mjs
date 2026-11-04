@@ -1879,6 +1879,19 @@ export function resolveCppImport(rawImport, file, ctx) {
   return [];
 }
 
+/**
+ * Zig: `@import("x.zig")` names a file relative to the importing file.
+ * Bare names (`@import("std")`, build.zig modules) are external here: their
+ * mapping lives in build.zig, which is not evaluated.
+ */
+export function resolveZigImport(rawImport, file, ctx) {
+  if (!rawImport || typeof rawImport !== 'string') return [];
+  const src = toPosix(rawImport.trim());
+  if (!src.endsWith('.zig') && !src.endsWith('.zon')) return [];
+  const resolved = resolveRelative(dirOf(toPosix(file.path)), src);
+  return resolved && ctx.fileSet.has(resolved) ? [resolved] : [];
+}
+
 // ---------------------------------------------------------------------------
 // Dispatcher
 // ---------------------------------------------------------------------------
@@ -1937,6 +1950,9 @@ function resolveImport(imp, file, ctx) {
   }
   if (lang === 'c' || lang === 'cpp') {
     return resolveCppImport(src, file, ctx);
+  }
+  if (lang === 'zig') {
+    return resolveZigImport(src, file, ctx);
   }
   // Ruby is handled via a dedicated pathway because its tree-sitter
   // extractor flattens require vs require_relative into a single field,

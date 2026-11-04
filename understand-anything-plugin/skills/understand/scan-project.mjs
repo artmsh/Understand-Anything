@@ -124,7 +124,7 @@ const LANGUAGE_BY_EXT = Object.freeze({
   // Python
   '.py': 'python',
   '.pyi': 'python',
-  // Go / Rust / Java / Kotlin / Scala / C# / Swift / Lua
+  // Go / Rust / Java / Kotlin / Scala / C# / Swift / Lua / Zig
   '.go': 'go',
   '.rs': 'rust',
   '.java': 'java',
@@ -136,6 +136,7 @@ const LANGUAGE_BY_EXT = Object.freeze({
   '.cs': 'csharp',
   '.swift': 'swift',
   '.lua': 'lua',
+  '.zig': 'zig',
   // Ruby / PHP
   '.rb': 'ruby',
   '.rake': 'ruby',

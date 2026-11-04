@@ -1575,6 +1575,40 @@ describe('extract-import-map.mjs — C/C++ resolver', () => {
   });
 });
 
+describe('extract-import-map.mjs — Zig resolver', () => {
+  let projectRoot;
+
+  afterEach(() => {
+    if (projectRoot) {
+      rmSync(projectRoot, { recursive: true, force: true });
+      projectRoot = null;
+    }
+  });
+
+  it('resolves relative @import file paths and leaves module names external', () => {
+    projectRoot = setupTree({
+      'src/main.zig':
+        `const std = @import("std");\nconst xdr = @import("xdr.zig");\nconst Reader = @import("proto/rpc.zig").Reader;\nconst missing = @import("gone.zig");\npub fn main() void {}\n`,
+      'src/xdr.zig': `pub const Error = error{Truncated};\n`,
+      'src/proto/rpc.zig': `const shared = @import("../xdr.zig");\npub const Reader = struct {};\n`,
+    });
+
+    const result = runScript(projectRoot, {
+      projectRoot,
+      files: [
+        { path: 'src/main.zig', language: 'zig', fileCategory: 'code' },
+        { path: 'src/xdr.zig', language: 'zig', fileCategory: 'code' },
+        { path: 'src/proto/rpc.zig', language: 'zig', fileCategory: 'code' },
+      ],
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.output.importMap['src/main.zig']).toEqual(['src/proto/rpc.zig', 'src/xdr.zig']);
+    expect(result.output.importMap['src/proto/rpc.zig']).toEqual(['src/xdr.zig']);
+    expect(result.output.importMap['src/xdr.zig']).toEqual([]);
+  });
+});
+
 describe('extract-import-map.mjs — Swift resolver', { timeout: 20_000 }, () => {
   let projectRoot;
 
