@@ -27,7 +27,7 @@
 
 ## Naming
 
-Graph nodes name Zig symbols by their dotted container path: class `Xdr.Reader`, method `Xdr.Reader.word`, with `contains` edges following the nesting. Test functions keep their source spelling: `test "description"`. The structural extraction lists classes by full path but methods by bare name; the file-analyzer qualifies methods with their innermost owning class (see its "Zig identity" rules).
+Graph nodes name Zig symbols by their dotted container path: class `Xdr.Reader`, method `Xdr.Reader.word`, with `contains` edges following the nesting. Test functions keep their source spelling: `test "description"`. The structural extraction lists classes by full path and functions by bare name plus `owner`, their container path; the file-analyzer joins the two (see its "Zig identity" rules).
 
 ## Summary Style
 

@@ -54,7 +54,8 @@ const STRUCTURE_ENTRY_VALIDATORS = {
     typeof entry.name === 'string' &&
     isLineRange(entry.lineRange) &&
     isStringArray(entry.params) &&
-    hasValidOptionalField(entry, 'returnType', value => typeof value === 'string'),
+    hasValidOptionalField(entry, 'returnType', value => typeof value === 'string') &&
+    hasValidOptionalField(entry, 'owner', value => value === null || typeof value === 'string'),
   classes: entry =>
     typeof entry.name === 'string' &&
     isLineRange(entry.lineRange) &&
@@ -233,6 +234,9 @@ export function buildResult(file, totalLines, nonEmptyLines, analysis, callGraph
       startLine: fn.lineRange[0],
       endLine: fn.lineRange[1],
       params: fn.params || [],
+      // Declaring container path from extractors that resolve it: "" is file
+      // scope, null an owner with no stable spelling. Absent otherwise.
+      ...(fn.owner !== undefined ? { owner: fn.owner } : {}),
     }));
   }
 

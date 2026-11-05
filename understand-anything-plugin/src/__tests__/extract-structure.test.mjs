@@ -109,4 +109,21 @@ describe("extract-structure buildResult", () => {
     });
 
   });
+
+  describe("function owner pass-through", () => {
+    const zig = file({ path: "src/main.zig", language: "zig" });
+    const fn = (name, owner) => ({ name, lineRange: [1, 2], params: [], ...(owner === undefined ? {} : { owner }) });
+
+    it("keeps owner so same-named methods stay distinct", () => {
+      const result = buildResult(zig, 10, 8, analysis({
+        functions: [fn("word", "Xdr.Reader"), fn("word", "Xdr.Writer"), fn("main", ""), fn("hidden", null)],
+      }), null, {});
+      expect(result.functions.map(f => f.owner)).toEqual(["Xdr.Reader", "Xdr.Writer", "", null]);
+    });
+
+    it("omits owner when the extractor does not resolve it", () => {
+      const result = buildResult(file(), 10, 8, analysis({ functions: [fn("run")] }), null, {});
+      expect(result.functions[0]).not.toHaveProperty("owner");
+    });
+  });
 });
