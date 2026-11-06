@@ -403,6 +403,11 @@ export async function validateIncrementalSymbols(projectRoot, { graph, intermedi
       const candidates = [
         ...(currentCandidates?.edges ?? []).map(edge => ({ edge, saved: false })),
         ...(hasRetry ? retry.inboundEdgeCandidates : []).map(edge => ({ edge, saved: true })),
+        // Published edges from files outside this update into reanalyzed
+        // files. Their IDs carry the old graph's meaning, so they bind only
+        // through the baseline (deleted targets drop), never by bare current ID.
+        ...baseline.files.flatMap(file => Array.isArray(file.inboundEdges) ? file.inboundEdges : [])
+          .map(edge => ({ edge, saved: false, published: true })),
       ];
       if (candidates.length || hasRetry) {
         const ids = new Set(graph.nodes.map(node => node.id));
@@ -431,7 +436,11 @@ export async function validateIncrementalSymbols(projectRoot, { graph, intermedi
             currentBindings.set(node.id, match);
           }
         }
-        const endpoint = (id, saved) => {
+        const endpoint = (id, saved, published) => {
+          if (published) {
+            if (baselineBindings.has(id)) return baselineBindings.get(id);
+            return ids.has(id) ? id : null;
+          }
           if (saved && currentBindings.has(id)) return currentBindings.get(id);
           if (!saved && ids.has(id)) return id;
           if (baselineBindings.has(id)) return baselineBindings.get(id);
@@ -443,11 +452,11 @@ export async function validateIncrementalSymbols(projectRoot, { graph, intermedi
         report.droppedCurrentEdges = [];
         report.idReplacements = [...replacements].map(([oldId, newId]) => ({ oldId, newId }));
         report.currentIdBindings = [...currentBindings].map(([oldId, newId]) => ({ oldId, newId }));
-        for (const { edge: candidate, saved } of candidates) {
+        for (const { edge: candidate, saved, published } of candidates) {
           const edge = {
             ...candidate,
-            source: endpoint(candidate.source, saved),
-            target: endpoint(candidate.target, saved),
+            source: endpoint(candidate.source, saved, published),
+            target: endpoint(candidate.target, saved, published),
           };
           if (!ids.has(edge.source) || !ids.has(edge.target)) {
             report.droppedCurrentEdges.push({ source: candidate.source, target: candidate.target, type: candidate.type });

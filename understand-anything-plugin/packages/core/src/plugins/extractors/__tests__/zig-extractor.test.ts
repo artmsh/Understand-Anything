@@ -100,6 +100,16 @@ const S = struct { test "inner" {} };
     parser.delete();
   });
 
+  it("attributes calls in named test bodies to the test", () => {
+    const { tree, parser, root } = parse('test "t" { setup(); const g = struct { fn go() void { run(); } }; _ = g; }\ntest { anon(); }\n');
+    expect(new ZigExtractor().extractCallGraph(root)).toEqual([
+      { caller: 'test "t"', callee: "setup", lineNumber: 1 },
+      { caller: "go", callee: "run", lineNumber: 1 },
+    ]);
+    tree.delete();
+    parser.delete();
+  });
+
   it("tolerates only the grammar's empty-container phantom field", () => {
     for (const code of ["const A = struct {};", "const B = enum {\n  // none\n};", "const C = union(enum) {};",
       "const D = packed struct(u8) {};", "const O = opaque {};"]) {

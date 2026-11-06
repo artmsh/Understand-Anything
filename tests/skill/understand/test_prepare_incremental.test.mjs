@@ -694,6 +694,37 @@ describe('incremental symbol publication gate', { timeout: 30_000 }, () => {
     expect(graph.edges.some(edge => edge.target === f.methodNodes[1].id)).toBe(false);
   });
 
+  it('reattaches edges from unreanalyzed files to surviving symbols and drops those into deletions', () => {
+    const f = symbolFixture(3);
+    const previous = JSON.parse(f.persisted()[0]);
+    const edge = (target, type) => ({ source: 'file:src/b.ts', target, type, direction: 'forward', weight: 0.6 });
+    previous.edges.push(
+      edge('file:src/a.ts', 'depends_on'),
+      edge(f.methodNodes[0].id, 'calls'),
+      edge(f.methodNodes[1].id, 'related'),
+      edge(f.methodNodes[2].id, 'calls'),
+    );
+    writeFileSync(join(f.dataDir, 'knowledge-graph.json'), JSON.stringify(previous));
+    writeProjectFile(f.root, 'src/a.ts', f.source([f.names[0], f.names[1]]));
+    commit(f.root, 'delete method2');
+    prepare(f.root, f.baseCommit);
+    expect(f.read('batch-existing.json').edges.some(e => e.source === 'file:src/b.ts')).toBe(false);
+    expect(f.read('incremental-symbol-baseline.json').files[0].inboundEdges).toHaveLength(4);
+    // The fresh analysis spells method1 differently; method2 is gone.
+    const renamed = { ...f.methodNodes[1], id: f.methodNodes[1].id.replace('Service.', 'Service::') };
+    f.write('batch-0.json', { nodes: [f.fileNode, f.classNode, f.methodNodes[0], renamed], edges: [] });
+    run(python, [mergeScript, f.root], f.root);
+    const report = f.read('incremental-symbol-report.json');
+    expect(report.ok).toBe(true);
+    expect(report.files[0].missing.map(node => [node.id, node.status])).toEqual([[f.methodNodes[2].id, 'deleted']]);
+    const fromB = graph => graph.edges.filter(e => e.source === 'file:src/b.ts')
+      .map(e => [e.target, e.type]).sort();
+    const expected = [['file:src/a.ts', 'depends_on'], [f.methodNodes[0].id, 'calls'], [renamed.id, 'related']].sort();
+    expect(fromB(f.read('assembled-graph.json'))).toEqual(expected);
+    run(process.execPath, [finalizeScript, f.root], f.root);
+    expect(fromB(JSON.parse(f.persisted()[0]))).toEqual(expected);
+  });
+
   it.each(['delete', 'exclude'])('allows an explicit file %s with old symbols', operation => {
     const f = symbolFixture(2);
     if (operation === 'delete') {

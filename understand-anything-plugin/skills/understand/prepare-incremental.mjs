@@ -673,6 +673,9 @@ async function main() {
 
   // Always derive this manifest from the immutable pre-update graph, including
   // on repeated prepare calls after an unsuccessful merge/finalization.
+  const replacedPaths = new Set([...filesToReanalyze, ...deletedFiles]);
+  const baselineNodes = new Map(baselineGraph.nodes.map(node => [node.id, node]));
+  const refreshedImportPaths = new Set(importAnalysisPaths);
   const symbolFiles = filesToReanalyze.map(filePath => {
     const nodes = baselineGraph.nodes.filter(node => normalizeRelativePath(node.filePath) === filePath);
     const ids = new Set(nodes.map(node => node.id));
@@ -680,6 +683,18 @@ async function main() {
       filePath,
       nodes,
       edges: baselineGraph.edges.filter(edge => ids.has(edge.source) && ids.has(edge.target)),
+      // Edges into this file from files that are not reanalyzed. Pruning drops
+      // them from batch-existing.json and no fresh batch re-emits them, so the
+      // validator reattaches them to the surviving identities (or drops them
+      // with a deleted target) once symbol validation passes.
+      inboundEdges: baselineGraph.edges.filter(edge => {
+        if (!ids.has(edge.target) || ids.has(edge.source)) return false;
+        const source = baselineNodes.get(edge.source);
+        const sourcePath = normalizeRelativePath(source?.filePath);
+        if (!source || !sourcePath || replacedPaths.has(sourcePath)) return false;
+        // Import recovery rebuilds these from the refreshed importMap.
+        return !(edge.type === 'imports' && refreshedImportPaths.has(sourcePath));
+      }),
     };
   });
   atomicWriteJson(join(intermediateDir, 'incremental-symbol-baseline.json'), {
@@ -709,10 +724,9 @@ async function main() {
   atomicWriteJson(join(intermediateDir, 'changed-files.json'), filesToReanalyze);
 
   if (decision.action === 'PARTIAL_UPDATE' || decision.action === 'ARCHITECTURE_UPDATE') {
-    const pathsToReplace = new Set([...filesToReanalyze, ...deletedFiles]);
     atomicWriteJson(
       join(intermediateDir, 'batch-existing.json'),
-      pruneExistingGraph(baselineGraph, pathsToReplace, new Set(importAnalysisPaths)),
+      pruneExistingGraph(baselineGraph, replacedPaths, refreshedImportPaths),
     );
   }
   atomicWriteJson(join(intermediateDir, 'incremental-plan.json'), plan);

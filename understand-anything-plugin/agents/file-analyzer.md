@@ -274,7 +274,7 @@ Using the script's structural data and file categories, create edges:
 |---|---|---|---|
 | `contains` | File contains a function or class node you created (use for ALL function/class nodes) | `1.0` | `forward` |
 | `imports` | File imports from another project file (use `batchImportData[filePath]` from input JSON — external imports already filtered out) | `0.7` | `forward` |
-| `calls` | A function in this file calls a function in another file (infer from imports + function names when confident) | `0.8` | `forward` |
+| `calls` | A function node you created calls another function node, in this file or in another file. Same-file calls: take them from the script's `callGraph` (the caller is the function node whose lines contain `lineNumber`; the callee must resolve to exactly one function node, e.g. `Export.escapes` or `c.send` → the owning container's `send`), never by guessing. Cross-file calls: infer from imports + function names when confident | `0.8` | `forward` |
 | `inherits` | A class extends another class in the project | `0.9` | `forward` |
 | `implements` | A class implements an interface in the project | `0.9` | `forward` |
 | `exports` | File exports a function or class node you created (only for exported items — use IN ADDITION to `contains`, not instead of it) | `0.8` | `forward` |

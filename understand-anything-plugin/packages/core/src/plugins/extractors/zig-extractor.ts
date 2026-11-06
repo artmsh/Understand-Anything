@@ -154,6 +154,11 @@ export class ZigExtractor implements LanguageExtractor {
       if (node.type === "function_declaration") {
         const name = node.childForFieldName("name")?.text;
         if (name) { stack.push(name); pushed = true; }
+      } else if (node.type === "test_declaration") {
+        // Named tests are functions in extractStructure, so they are callers
+        // too; an anonymous `test {}` has no identity to attribute calls to.
+        const name = zigTestName(node);
+        if (name) { stack.push(name); pushed = true; }
       } else if (node.type === "call_expression" && stack.length) {
         const callee = node.childForFieldName("function")?.text;
         if (callee) entries.push({ caller: stack[stack.length - 1], callee, lineNumber: node.startPosition.row + 1 });
