@@ -1186,6 +1186,34 @@ class MergeEdgeDirectionTests(unittest.TestCase):
         self.assertEqual(edges[0]["weight"], 0.9)
 
 
+class MergeLineRangeTests(unittest.TestCase):
+    """A malformed lineRange must not reach the dashboard, which drops the
+    whole node (and every edge touching it) on schema failure."""
+
+    def _merge(self, **extra: Any) -> dict[str, Any]:
+        batch = {"nodes": [_file_node("tools/probe.py", **extra)], "edges": []}
+        assembled, _report = mbg.merge_and_normalize([batch])
+        return assembled["nodes"][0]
+
+    def test_prose_moves_to_language_notes(self) -> None:
+        node = self._merge(lineRange="Hand-rolled XDR via struct.pack")
+        self.assertNotIn("lineRange", node)
+        self.assertEqual(node["languageNotes"], "Hand-rolled XDR via struct.pack")
+
+    def test_prose_does_not_overwrite_language_notes(self) -> None:
+        node = self._merge(lineRange="stray", languageNotes="kept")
+        self.assertNotIn("lineRange", node)
+        self.assertEqual(node["languageNotes"], "kept")
+
+    def test_wrong_shape_is_removed(self) -> None:
+        for bad in ([1], [1, 2, 3], ["1", "2"], [True, False], {"start": 1}):
+            with self.subTest(bad=bad):
+                self.assertNotIn("lineRange", self._merge(lineRange=bad))
+
+    def test_valid_range_is_kept(self) -> None:
+        self.assertEqual(self._merge(lineRange=[1, 40])["lineRange"], [1, 40])
+
+
 # ── Multi-part batch handling ─────────────────────────────────────────────
 
 

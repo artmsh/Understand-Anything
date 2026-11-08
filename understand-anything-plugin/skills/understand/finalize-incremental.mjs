@@ -327,6 +327,9 @@ function normalizeFingerprintStore(raw, baseCommit) {
 }
 
 function isGeneratedOnly(plan) {
+  // prepare-incremental sees the full diff; a non-generated path whose
+  // fingerprint is unchanged appears in none of the plan's file lists.
+  if (typeof plan.onlyGeneratedArtifacts === 'boolean') return plan.onlyGeneratedArtifacts;
   return plan.generatedArtifactFiles.length > 0
     && plan.filesToReanalyze.length === 0
     && plan.deletedFiles.length === 0

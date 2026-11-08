@@ -1251,6 +1251,34 @@ describe('prepare-incremental.mjs', { timeout: 30_000 }, () => {
     expect(meta.gitCommitHash).toBe(baseCommit);
   });
 
+  it('advances the baseline when a generated-artifact commit also carries an already-fingerprinted source change', () => {
+    // The graph was rebuilt from a working tree that already held the source
+    // edit, and both were committed together. The source file is in the diff
+    // but its fingerprint matches, so it is neither structural nor cosmetic.
+    const { root, baseCommit } = setupRepository({
+      'src/a.ts': 'export const a = 1;\n',
+      'src/b.ts': 'export const b = 2;\n',
+      'src/c.ts': 'export const c = 3;\n',
+      'src/d.ts': 'export const d = 4;\n',
+    });
+    writeProjectFile(root, 'src/a.ts', 'export const a = 10;\n');
+    buildBaseline(root, baseCommit);
+    writeProjectFile(root, '.ua/tracked-generated.json', '{}\n');
+    const headCommit = commit(root, 'source edit with rebuilt graph', {
+      forcePaths: ['.ua/tracked-generated.json'],
+    });
+
+    const { plan } = prepare(root, baseCommit);
+    expect(plan.action).toBe('SKIP');
+    expect(plan.generatedArtifactFiles).toEqual(['.ua/tracked-generated.json']);
+    expect(plan.onlyGeneratedArtifacts).toBe(false);
+    run(process.execPath, [finalizeScript, root], root);
+    const meta = JSON.parse(readFileSync(join(root, '.ua', 'meta.json'), 'utf-8'));
+    expect(meta.gitCommitHash).toBe(headCommit);
+    const graph = JSON.parse(readFileSync(join(root, '.ua', 'knowledge-graph.json'), 'utf-8'));
+    expect(graph.project.gitCommitHash).toBe(headCommit);
+  });
+
   it('refuses to stamp HEAD when an analyzable untracked file is present', () => {
     const { root, baseCommit } = setupRepository({
       'src/a.ts': 'export const a = 1;\n',

@@ -665,6 +665,7 @@ async function main() {
     cosmeticFiles: analysis.cosmeticOnlyFiles,
     ignoredFiles,
     generatedArtifactFiles,
+    onlyGeneratedArtifacts,
     importMapRefreshPaths: importAnalysisPaths,
     rerunArchitecture: decision.rerunArchitecture,
     rerunTour: decision.rerunTour,

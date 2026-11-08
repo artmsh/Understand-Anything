@@ -870,6 +870,26 @@ def merge_and_normalize(
 
         node["complexity"] = normalized
 
+    # ── Step 3b: Normalize lineRange ─────────────────────────────────
+    # The schema requires [start, end] numbers; anything else makes the
+    # dashboard drop the whole node and every edge touching it. Prose put
+    # into lineRange by mistake is kept as languageNotes when that is empty.
+    line_range_fixes = 0
+    for node in nodes_with_ids:
+        if "lineRange" not in node:
+            continue
+        value = node["lineRange"]
+        if (
+            isinstance(value, list)
+            and len(value) == 2
+            and all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in value)
+        ):
+            continue
+        if isinstance(value, str) and value.strip() and not node.get("languageNotes"):
+            node["languageNotes"] = value
+        del node["lineRange"]
+        line_range_fixes += 1
+
     # ── Step 4: Rewrite edge references ──────────────────────────────
     edges_rewritten = 0
     for edge in all_edges:
@@ -950,6 +970,8 @@ def merge_and_normalize(
     if complexity_fix_patterns:
         for pattern, count in complexity_fix_patterns.most_common():
             fixed_lines.append(f"  {count:>4} × complexity {pattern}")
+    if line_range_fixes:
+        fixed_lines.append(f"  {line_range_fixes:>4} × malformed lineRange removed (not [start, end])")
     if edges_rewritten:
         fixed_lines.append(f"  {edges_rewritten:>4} × edge references rewritten after ID normalization")
     if duplicate_count:
@@ -964,6 +986,7 @@ def merge_and_normalize(
         total_fixes = (
             sum(id_fix_patterns.values())
             + sum(complexity_fix_patterns.values())
+            + line_range_fixes
             + edges_rewritten
             + duplicate_count
             + tested_by_swapped
